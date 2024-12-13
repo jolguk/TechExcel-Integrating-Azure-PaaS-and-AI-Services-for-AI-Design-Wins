@@ -3,10 +3,20 @@ import openai
 
 st.set_page_config(layout="wide")
 
+    
 def create_chat_completion(messages):
     """Create and return a new chat completion request. Key assumptions:
-    - The Azure OpenAI endpoint, key, and deployment name are stored in Streamlit secrets."""
-
+    - The Azure OpenAI endpoint, key, and deployment name are stored in Streamlit secrets.
+    - The Azure Search endpoint, key, and index name are also stored in Streamlit secrets.
+    
+    Secrets used:
+    - aoai_endpoint: Azure OpenAI endpoint
+    - aoai_key: Azure OpenAI key
+    - aoai_deployment_name: Azure OpenAI deployment name
+    - search_endpoint: Azure Search endpoint
+    - search_key: Azure Search key
+    - search_index_name: Azure Search index name
+    """
     # Retrieve secrets from the Streamlit secret store.
     # This is a secure way to store sensitive information that you don't want to expose in your code.
     # Learn more about Streamlit secrets here: https://docs.streamlit.io/develop/concepts/connections/secrets-management
@@ -15,6 +25,11 @@ def create_chat_completion(messages):
     aoai_key = st.secrets["aoai"]["key"]
     aoai_deployment_name = st.secrets["aoai"]["deployment_name"]
 
+    search_endpoint = st.secrets["search"]["endpoint"]
+    search_key = st.secrets["search"]["key"]
+    search_index_name = st.secrets["search"]["index_name"]
+
+
     client = openai.AzureOpenAI(
         api_key=aoai_key,
         api_version="2024-06-01",
@@ -22,13 +37,29 @@ def create_chat_completion(messages):
     )
     # Create and return a new chat completion request
     return client.chat.completions.create(
-        model=aoai_deployment_name,
-        messages=[
-            {"role": m["role"], "content": m["content"]}
-            for m in messages
-        ],
-        stream=True
-    )
+          model=aoai_deployment_name,
+          messages=[
+              {"role": m["role"], "content": m["content"]}
+              for m in messages
+          ],
+          stream=True,
+          extra_body={
+              "data_sources": [
+                  {
+                      "type": "azure_search",
+                      "parameters": {
+                          "endpoint": search_endpoint,
+                          "index_name": search_index_name,
+                          "authentication": {
+                              "type": "api_key",
+                              "key": search_key
+                          }
+                      }
+                  }
+              ]
+          }
+      )
+
 
 def handle_chat_prompt(prompt):
     """Echo the user's prompt to the chat window.
